@@ -2,55 +2,62 @@ package guess_it
 
 import "math"
 
-// LinearRegression calculates the slope, intercept, mean of x, and SSX.
-func LinearRegression(x, y []float64) (float64, float64, float64, float64, float64) {
-	N := float64(len(x))
-	sumX, sumY, sumXY, sumX2 := 0.0, 0.0, 0.0, 0.0
 
-	for i := 0; i < len(x); i++ {
-		sumX += x[i]
-		sumY += y[i]
-		sumXY += x[i] * y[i]
-		sumX2 += x[i] * x[i]
+// Function to calculate the mean of a slice
+func mean(values []float64) float64 {
+	sum := 0.0
+	for _, v := range values {
+		sum += v
 	}
-
-	meanX := sumX / N
-	meanY := sumY / N
-
-	slope := (N*sumXY - sumX*sumY) / (N*sumX2 - sumX*sumX)
-	intercept := meanY - slope*meanX
-
-	// Calculate SSX (sum of squares of x deviations)
-	ssx := 0.0
-	for i := 0; i < len(x); i++ {
-		ssx += (x[i] - meanX) * (x[i] - meanX)
-	}
-	// Calculates the residual sum of squares and standard error
-	residualSum := 0.0
-	for i := 0; i < len(x); i++ {
-		yPred := intercept + slope*x[i]
-		residualSum += (y[i] - yPred) * (y[i] - yPred)
-	}
-	stdError := math.Sqrt(residualSum/float64(len(x) - 2))
-
-	return slope, intercept, meanX, ssx, stdError
+	return sum / float64(len(values))
 }
 
-func Predictiveinterval(x []float64, slope, intercept, meanX, ssx, stdError float64) (float64, float64) {
-	N := float64(len(x))
-	xNew := N
-	// Predict y for new x
-	ypred := intercept + slope*xNew
+// Function to calculate the standard deviation of the y-values
+func StandardDeviation(values []float64) float64 {
+	meanValue := mean(values)
+	var sumSquares float64
+	for _, v := range values {
+		sumSquares += (v - meanValue) * (v - meanValue)
+	}
+	variance := sumSquares / float64(len(values))
+	return math.Sqrt(variance)
+}
 
-	// Calculate critical value for Z
-	zvalue := 1.96
 
-	// Calculate the prediction interval for the next value(x + 1)
-	predictionInterv := zvalue * stdError * math.Sqrt(1.0+1.0/float64(N)+(xNew-meanX)*(xNew-meanX)/ssx)
+// LinearRegression calculates the slope, intercept, mean of x, and SSX.
+func LinearRegression(x, y []float64) (float64, float64) {
+xMean := mean(x)
+yMean := mean(y)
 
-	lowerbound := ypred - predictionInterv
-	upperbound := ypred + predictionInterv
+// calculate slope (b)
+var num, denom float64
+for i := 0; i < len(x); i++ {
+	num += (x[i] - xMean) * (y[i] - yMean)
+		denom += (x[i] - xMean) * (x[i] - xMean)
+}
+b := num/denom
+
+// calculate intercept (a)
+a := yMean - (b * xMean)
+
+return a, b
+}
+
+// Function to calculate the range for the next number
+func PredictiveInterval(x, a, b, stdDev float64) (float64, float64) {
+	ypred := a + b * x
+
+	// Set a buffer for the range (can be based on standard deviation or a fixed value)
+	lowerbound := ypred - math.Max(1, ypred - 3 * stdDev)
+	upperbound := ypred + 3 * stdDev
 
 	return lowerbound, upperbound
 
+}
+// Function to manage the sliding window of the last 5 values
+func MaintainLastFive(slice []float64, newValue float64) []float64 {
+	if len(slice) < 5.0 {
+		return append(slice, newValue)
+	}
+	return append(slice[1:], newValue)
 }
