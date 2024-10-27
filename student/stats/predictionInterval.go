@@ -2,9 +2,8 @@ package guess_it
 
 import "math"
 
-
 // Function to calculate the mean of a slice
-func mean(values []float64) float64 {
+func Mean(values []float64) float64 {
 	sum := 0.0
 	for _, v := range values {
 		sum += v
@@ -13,51 +12,78 @@ func mean(values []float64) float64 {
 }
 
 // Function to calculate the standard deviation of the y-values
-func StandardDeviation(values []float64) float64 {
-	meanValue := mean(values)
-	var sumSquares float64
-	for _, v := range values {
-		sumSquares += (v - meanValue) * (v - meanValue)
+func StandardDev(input []float64, mean float64) float64 {
+	sum := 0.0
+	for _, val := range input {
+		sum += (val - mean) * (val - mean)
 	}
-	variance := sumSquares / float64(len(values))
-	return math.Sqrt(variance)
+	return math.Sqrt(sum / float64(len(input)))
 }
-
 
 // LinearRegression calculates the slope, intercept, mean of x, and SSX.
-func LinearRegression(x, y []float64) (float64, float64) {
-xMean := mean(x)
-yMean := mean(y)
+func LinearRegression(y []float64) (m, c float64) {
+	// Generate x axis values as indices of y
+	x := make([]float64, len(y))
+	for i := range y {
+		x[i] = float64(i)
+	}
 
-// calculate slope (b)
-var num, denom float64
-for i := 0; i < len(x); i++ {
-	num += (x[i] - xMean) * (y[i] - yMean)
-		denom += (x[i] - xMean) * (x[i] - xMean)
+	// Get means of x and y
+	meanX := Mean(x)
+	meanY := Mean(y)
+
+	// Calculate variances and standard deviations for x and y
+	stddevX := StandardDev(x, meanX)
+	stddevY := StandardDev(y, meanY)
+
+	// Calculate Pearson’s correlation coefficient
+	corelation := PearsonsCorrelationCoefficient(y)
+
+	// Calculate slope (m)
+	m = corelation * stddevY / stddevX
+
+	// Calculate intercept (c) where the regression line crosses the y-axis
+	c = meanY - m*meanX
+	return m, c
 }
-b := num/denom
 
-// calculate intercept (a)
-a := yMean - (b * xMean)
+// Calculates the Pearson Correlation Coefficient for y with indices as x
+func PearsonsCorrelationCoefficient(y []float64) float64 {
+	// Generate x values as indices of y
+	x := make([]float64, len(y))
+	for i := range y {
+		x[i] = float64(i)
+	}
 
-return a, b
+	// Calculate means of x and y
+	meanX := Mean(x)
+	meanY := Mean(y)
+
+	// Calculate numerator and the sums of squares
+	var sumXY, sumXSquare, sumYSquare float64
+	for i, yi := range y {
+		xi := float64(i)
+		diffX := xi - meanX
+		diffY := yi - meanY
+		sumXY += diffX * diffY
+		sumXSquare += diffX * diffX
+		sumYSquare += diffY * diffY
+	}
+
+	// Calculate the denominator
+	denominator := math.Sqrt(sumXSquare * sumYSquare)
+	if denominator == 0 {
+		return 0 // Avoid division by zero
+	}
+
+	// Calculate and return correlation coefficient
+	return sumXY / denominator
 }
 
 // Function to calculate the range for the next number
-func PredictiveInterval(x, a, b, stdDev float64) (float64, float64) {
-	ypred := a + b * x
-
-	// Set a buffer for the range (can be based on standard deviation or a fixed value)
-	lowerbound := ypred - math.Max(1, ypred - 3 * stdDev)
-	upperbound := ypred + 3 * stdDev
-
-	return lowerbound, upperbound
-
-}
-// Function to manage the sliding window of the last 5 values
-func MaintainLastFive(slice []float64, newValue float64) []float64 {
-	if len(slice) < 5.0 {
-		return append(slice, newValue)
-	}
-	return append(slice[1:], newValue)
+func PredictNextValue(y []float64) float64 {
+	slope, intercept := LinearRegression(y)
+	nextIndex := float64(len(y))
+	// y=mx+c
+	return slope*nextIndex + intercept
 }
